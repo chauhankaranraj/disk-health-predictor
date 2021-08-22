@@ -183,7 +183,7 @@ class PSDiskHealthClassifier(DiskHealthClassifier):
 
         return ordered_attrs
 
-    def predict(self, disk_days: Sequence[DevSmartT]) -> str:
+    def predict(self, disk_days_input: Sequence[DevSmartT]) -> str:
         """
         Predict using given 6-days disk S.M.A.R.T. attributes.
         Args:
@@ -202,6 +202,8 @@ class PSDiskHealthClassifier(DiskHealthClassifier):
         """
 
         all_pred = []
+
+        disk_days = self.extract_ata_smart_attributes(disk_days_input)
 
         proc_disk_days = self.__preprocess(disk_days)
         attr_list, diff_data = PSDiskHealthClassifier.__get_diff_attrs(proc_disk_days)

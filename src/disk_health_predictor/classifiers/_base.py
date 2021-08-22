@@ -12,7 +12,7 @@ class DiskHealthClassifier:
         pass
 
     @classmethod
-    def extract_ata_smart_attributes(health_data: Dict) -> Dict:
+    def extract_ata_smart_attributes(cls, health_data: Dict) -> Dict:
         # dummy vars to be used later. avoid overhead of created multiple empty objects
         emptydict = {}
         emptylist = []
@@ -47,7 +47,7 @@ class DiskHealthClassifier:
                     "value", None
                 )
 
-        return flattened_smart_data
+        return [flattened_smart_data[k] for k in sorted(flattened_smart_data.keys())]
 
     @abstractmethod
     def initialize(self, model_dir: str) -> None:
