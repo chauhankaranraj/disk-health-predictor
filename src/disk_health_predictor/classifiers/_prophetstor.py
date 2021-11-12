@@ -204,6 +204,8 @@ class PSDiskHealthClassifier(DiskHealthClassifier):
         all_pred = []
 
         disk_days = self.extract_ata_smart_attributes(disk_days_input)
+        disk_days = [disk_days[k] for k in sorted(disk_days.keys())]
+        # FIXME: initially this did not include device capacity but now it does
 
         proc_disk_days = self.__preprocess(disk_days)
         attr_list, diff_data = PSDiskHealthClassifier.__get_diff_attrs(proc_disk_days)
