@@ -34,12 +34,16 @@ class DiskHealthClassifier:
                 # here, the correct value should be 26 and not 471138330
                 raw_str = attr.get("raw", emptydict).get("string", None)
                 if raw_str is not None:
-                    if raw_str.isdigit():
-                        raw = int(raw_str)
-                    else:
-                        raw = int(raw_str.split(" ", maxsplit=1)[0])
+                    raw_str = raw_str.split(" ", maxsplit=1)[0]
+
+                # try to parse value from string
+                if raw_str.isdigit():
+                    raw = int(raw_str)
                 else:
-                    raw = attr.get("raw", emptydict).get("value", None)
+                    # if not possible, use the number in "value" key
+                    # case in point - "string": "7019h+59m+24.383s"
+                    # TODO: also throw warning
+                    raw = attr.get("raw", emptydict).get("value")
 
                 # save raw and normalized values
                 flattened_smart_data[date][f"smart_{attr_id}_raw"] = raw
