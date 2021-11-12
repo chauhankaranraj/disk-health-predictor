@@ -52,6 +52,8 @@ def extract_smartctl_attrs(daywise_smartctl_data):
 
         # add device capacity
         user_capacity = daydata.get("user_capacity", emptydict).get("bytes")
+        if isinstance(user_capacity, dict):
+            user_capacity = user_capacity["n"]
         day_smartctl_attrs["user_capacity"] = user_capacity
 
         # add todays smartctl attrs to dict of all days' smartctl attrs
