@@ -47,7 +47,20 @@ class DiskHealthClassifier:
                     "value", None
                 )
 
-        return [flattened_smart_data[k] for k in sorted(flattened_smart_data.keys())]
+            # try to add power on hours manually
+            # in case it wasnt extracted from smart attribute table
+            if flattened_smart_data[date].get("smart_9_raw") is None:
+                flattened_smart_data[date]["smart_9_raw"] = date_smart_json.get(
+                    "power_on_time", emptydict
+                ).get("hours")
+
+            # add device capacity
+            user_capacity = date_smart_json.get("user_capacity", emptydict).get("bytes")
+            if isinstance(user_capacity, dict):
+                user_capacity = user_capacity["n"]
+            flattened_smart_data[date]["user_capacity"] = user_capacity
+
+        return flattened_smart_data
 
     @abstractmethod
     def initialize(self, model_dir: str) -> None:
