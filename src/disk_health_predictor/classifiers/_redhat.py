@@ -79,10 +79,11 @@ class RHDiskHealthClassifier(DiskHealthClassifier):
     ) -> Optional[np.ndarray]:
         """Scales and transforms input dataframe to feed it to prediction model
         Arguments:
-            disk_days {list} -- list in which each element is a dictionary with key,val
-                                as feature name,value respectively.
-                                e.g.[{'smart_1_raw': 0, 'user_capacity': 512 ...}, ...]
-            vendor {str} -- vendor of the hard drive
+            disk_days {dict} -- dict where key is date, value is smartctl data extracted
+                                from that date e.g. {"2020-01-31 12:12:01": {"wwn":
+                                {"naa": 5, "oui": 3152}, "ata_smart_attributes":
+                                {"table": [{"id": 1, "raw": {"value": 60404968, ... }
+            vendor {str} -- vendor of the hard disk
         Returns:
             numpy.ndarray -- (n, d) shaped array of n days worth of data and d
                                 features, scaled
@@ -99,14 +100,19 @@ class RHDiskHealthClassifier(DiskHealthClassifier):
             )
             return None
 
+        # flattened dict {"smart_1_raw": 1, "user_capacity": 1000, "smart_9_norm": 12}
+        # disk_days_smartctl_attrs = extract_smartctl_attrs(disk_days)
+        disk_days_smartctl_attrs = self.extract_ata_smart_attributes(disk_days)
+
         # convert to structured array, keeping only the required features
         # assumes all data is in float64 dtype
         try:
             struc_dtypes = [(attr, np.float64) for attr in model_smart_attr]
             values = [
-                tuple(day[attr] for attr in model_smart_attr) for day in disk_days
+                tuple(daydata[attr] for attr in model_smart_attr)
+                for _, daydata in disk_days_smartctl_attrs.items()
             ]
-            disk_days_sa = np.array(values, dtype=struc_dtypes)
+            disk_days_strucarr = np.array(values, dtype=struc_dtypes)
         except KeyError:
             RHDiskHealthClassifier.LOGGER.debug(
                 "Mismatch in SMART attributes used to train model and SMART attributes\
@@ -117,9 +123,9 @@ class RHDiskHealthClassifier(DiskHealthClassifier):
         # view structured array as 2d array for applying rolling window transforms
         # do not include capacity_bytes in this. only use smart_attrs
         disk_days_attrs = (
-            disk_days_sa[[attr for attr in model_smart_attr if "smart_" in attr]]
+            disk_days_strucarr[[attr for attr in model_smart_attr if "smart_" in attr]]
             .view(np.float64)
-            .reshape(disk_days_sa.shape + (-1,))
+            .reshape(disk_days_strucarr.shape + (-1,))
         )
 
         # featurize n (6 to 12) days data - mean,std,coefficient of variation
@@ -152,7 +158,7 @@ class RHDiskHealthClassifier(DiskHealthClassifier):
                 means,
                 stds,
                 cvs,
-                disk_days_sa["user_capacity"][:dataset_size].reshape(-1, 1),
+                disk_days_strucarr["user_capacity"][:dataset_size].reshape(-1, 1),
             )
         )
 
@@ -165,9 +171,9 @@ class RHDiskHealthClassifier(DiskHealthClassifier):
 
     @staticmethod
     def _estimate_vendor_from_model(model_name: str) -> Optional[str]:
-        """Returns the vendor name for a given hard drive model name
+        """Returns the vendor name for a given hard disk model name
         Arguments:
-            model_name {str} -- hard drive model name
+            model_name {str} -- hard disk model name
         Returns:
             str -- vendor name
         """
