@@ -1,6 +1,7 @@
 import os
 from typing import Dict
 
+from ._base import DiskHealthClassifier
 from ._prophetstor import PSDiskHealthClassifier
 from ._redhat import RHDiskHealthClassifier
 
@@ -11,12 +12,12 @@ def get_modelstore_path() -> str:
     return modelstore_path
 
 
-def get_optimal_classifier_name(config: Dict):
+def get_optimal_classifier_name(config: Dict) -> str:
     return "redhat"
 
 
 # FIXME: need to ensure git lfs is set up correctly for modelstore location change
-def DiskHealthClassifierFactory(predictor_name: str):
+def DiskHealthClassifierFactory(predictor_name: str) -> DiskHealthClassifier:
     if predictor_name == "redhat":
         predictor = RHDiskHealthClassifier()
         predictor.initialize(os.path.join(get_modelstore_path(), "redhat"))
