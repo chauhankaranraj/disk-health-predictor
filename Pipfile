@@ -12,9 +12,6 @@ setuptools = "*"
 
 [packages]
 disk-health-predictor = {path = "."}
-importlib-metadata = "*"
-numpy = "*"
-scikit-learn = "<=0.21.3"
 
 [requires]
 python_version = "3.8"
