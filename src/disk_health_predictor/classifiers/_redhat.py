@@ -5,6 +5,7 @@ import pickle
 from typing import Dict, List, Optional, Sequence
 
 import numpy as np
+from numpy.lib.recfunctions import structured_to_unstructured
 
 from .._types import DevSmartT
 from ._base import DiskHealthClassifier
@@ -120,13 +121,14 @@ class RHDiskHealthClassifier(DiskHealthClassifier):
             )
             return None
 
-        # view structured array as 2d array for applying rolling window transforms
         # do not include capacity_bytes in this. only use smart_attrs
-        disk_days_attrs = (
-            disk_days_strucarr[[attr for attr in model_smart_attr if "smart_" in attr]]
-            .view(np.float64)
-            .reshape(disk_days_strucarr.shape + (-1,))
-        )
+        disk_days_attrs = disk_days_strucarr[
+            [attr for attr in model_smart_attr if "smart_" in attr]
+        ]
+
+        # view structured array as 2d array for applying rolling window transforms
+        # NOTE: this is new behavior from numpy 1.15 to 1.16
+        disk_days_attrs = structured_to_unstructured(disk_days_attrs)
 
         # featurize n (6 to 12) days data - mean,std,coefficient of variation
         # current model is trained on 6 days of data because that is what will be
