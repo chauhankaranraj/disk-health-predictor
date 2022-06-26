@@ -1,10 +1,10 @@
 import json
 import logging
 import os
-import pickle
 from typing import Dict, List, Optional, Sequence
 
 import numpy as np
+import onnxruntime as rt
 from numpy.lib.recfunctions import structured_to_unstructured
 
 from .._types import DevSmartT
@@ -66,10 +66,10 @@ class RHDiskHealthClassifier(DiskHealthClassifier):
         # ensure all vendors whose context is defined in config file
         # have models and scalers saved inside model_dirpath
         for vendor in self.model_context:
-            scaler_path = os.path.join(model_dirpath, vendor + "_scaler.pkl")
+            scaler_path = os.path.join(model_dirpath, vendor + "_scaler.onnx")
             if not os.path.isfile(scaler_path):
                 raise Exception(f"Missing scaler file: {scaler_path}")
-            model_path = os.path.join(model_dirpath, vendor + "_predictor.pkl")
+            model_path = os.path.join(model_dirpath, vendor + "_predictor.onnx")
             if not os.path.isfile(model_path):
                 raise Exception(f"Missing model file: {model_path}")
 
@@ -175,10 +175,13 @@ class RHDiskHealthClassifier(DiskHealthClassifier):
         )
 
         # scale features
-        scaler_path = os.path.join(self.model_dirpath, vendor + "_scaler.pkl")
-        with open(scaler_path, "rb") as f:
-            scaler = pickle.load(f)
-        featurized = scaler.transform(featurized)
+        scaler_path = os.path.join(self.model_dirpath, vendor + "_scaler.onnx")
+        sess = rt.InferenceSession(scaler_path)
+        input_name = sess.get_inputs()[0].name
+        label_name = sess.get_outputs()[0].name
+        featurized = sess.run(
+            [label_name], {input_name: featurized.astype(np.float32)}
+        )[0]
         return featurized
 
     @staticmethod
@@ -286,12 +289,16 @@ class RHDiskHealthClassifier(DiskHealthClassifier):
             return RHDiskHealthClassifier.PREDICTION_CLASSES[-1]
 
         # get model for current vendor
-        model_path = os.path.join(self.model_dirpath, vendor + "_predictor.pkl")
-        with open(model_path, "rb") as f:
-            model = pickle.load(f)
+        model_path = os.path.join(self.model_dirpath, vendor + "_predictor.onnx")
+        sess = rt.InferenceSession(model_path)
+        input_name = sess.get_inputs()[0].name
+        label_name = sess.get_outputs()[0].name
+        inference_sess_output = sess.run(
+            [label_name], {input_name: preprocessed_data.astype(np.float32)}
+        )[0]
 
         # use prediction for most recent day
         # TODO: ensure that most recent day is last element and most previous day
         # is first element in input disk_days
-        pred_class_id = model.predict(preprocessed_data)[-1]
+        pred_class_id = inference_sess_output[-1]
         return RHDiskHealthClassifier.PREDICTION_CLASSES[pred_class_id]
